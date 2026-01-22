@@ -86,10 +86,10 @@ def extract_ciudad(xl, ciudad):
     return df
 
 
-def indice_nacional():
+def indice_nacional(desde):
     fn = "indice.xlsx"
     descargar_excel(
-        "https://www.ine.gob.bo/index.php/nacional/",
+        "https://www.ine.gob.bo/index.php/serie-historica-empalmada/",
         "Índice General, Variación Mensual, Acumulada y a 12 Meses",
         fn,
     )
@@ -109,7 +109,8 @@ def indice_nacional():
         ],
         axis=1,
     ).reset_index()
-    print(f"nacional: {df.shape[0]} filas")
+    df = df[df.fecha.dt.year >= desde].copy()
+    print(f"nacional: {df.shape[0]} filas {'desde ' + str(desde) if desde > 0 else ''}")
     return df
 
 
@@ -127,56 +128,40 @@ def indice_producto_ciudad():
     return df
 
 
-def guardar_supabase(df, tabla, fake=False):
-    def last_updated(supabase, tabla):
-        r = (
-            supabase.table(tabla)
-            .select("fecha")
-            .order("fecha", desc=True)
-            .limit(1)
-            .execute()
-        )
-
-        rows = getattr(r, "data", None) or []
-        if not rows:
-            return None
-
-        return pd.Timestamp(rows[0]["fecha"])
-
+def guardar(df, tabla, unique, upload=False):
     print(f"guardar {tabla}")
-    if fake:
-        df.to_csv(f"{tabla}.csv", index=False)
-    else:
+    df.to_csv(f"{tabla}.csv", index=False)
+    df.to_excel(f"{tabla}.xlsx", index=False)
+    if upload:
         chunk_size = 5000
         sleep_s = 0.2
         supabase = create_client(SB_URL, SB_KEY)
-        updated = last_updated(supabase, tabla)
-        if updated:
-            print(f"última actualización: {updated.strftime('%Y-%m-%d')}")
-            df = df[df.fecha > updated].copy()
-
         n = len(df)
-        if n == 0:
-            print("no existen filas nuevas")
-            return
-
-        print(f"existen {n} filas nuevas")
         df.fecha = df.fecha.dt.strftime("%Y-%m-%d")
         for i in range(0, n, chunk_size):
             print(f"{n if i + chunk_size > n else i + chunk_size} filas")
             chunk = df.iloc[i : i + chunk_size]
-            supabase.table(tabla).insert(chunk.to_dict(orient="records")).execute()
+            supabase.table(tabla).upsert(
+                chunk.to_dict(orient="records"),
+                on_conflict=",".join(unique),
+                ignore_duplicates=True,
+            ).execute()
             sleep(sleep_s)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Descarga y guarda datos del IPC")
-    parser.add_argument("--fake", action="store_true", help="Save to CSV instead of Supabase")
+    parser.add_argument("--upload", action="store_true", help="Save to Supabase")
+    parser.add_argument("--desde", type=int, help="Desde qué año", default=0)
     args = parser.parse_args()
 
-    nacional = indice_nacional()
+    nacional = indice_nacional(args.desde)
+    guardar(nacional, "ine_ipc_nacional", ["fecha"], upload=args.upload)
 
-guardar_supabase(nacional, "ine_ipc_nacional", fake=args.fake)
-producto_ciudad = indice_producto_ciudad()
-guardar_supabase(producto_ciudad, "ine_ipc_producto_ciudad", fake=args.fake)
-
+    producto_ciudad = indice_producto_ciudad()
+    guardar(
+        producto_ciudad,
+        "ine_ipc_producto_ciudad",
+        ["fecha", "ciudad", "codigo"],
+        upload=args.upload,
+    )

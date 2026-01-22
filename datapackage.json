@@ -1,0 +1,163 @@
+{
+  "name": "ine_ipc",
+  "title": "Índice de Precios al Consumidor (INE Bolivia)",
+  "version": "1.0.0",
+  "resources": [
+    {
+      "name": "ine_ipc_nacional_csv",
+      "title": "IPC nacional (CSV)",
+      "type": "table",
+      "path": "ine_ipc_nacional.csv",
+      "scheme": "file",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "fecha",
+            "type": "date",
+            "description": "Fecha del registro"
+          },
+          {
+            "name": "indice_mensual",
+            "type": "number",
+            "description": "Índice general mensual (base 100)"
+          },
+          {
+            "name": "variacion_mensual",
+            "type": "number",
+            "description": "Variación porcentual mensual"
+          },
+          {
+            "name": "variacion_acumulada",
+            "type": "number",
+            "description": "Variación acumulada del año (porcentaje)"
+          },
+          {
+            "name": "variacion_12_meses",
+            "type": "number",
+            "description": "Variación a 12 meses (porcentaje)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ine_ipc_nacional_xlsx",
+      "title": "IPC nacional (Excel)",
+      "type": "table",
+      "path": "ine_ipc_nacional.xlsx",
+      "scheme": "file",
+      "format": "xlsx",
+      "mediatype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "fecha",
+            "type": "date",
+            "description": "Fecha del registro"
+          },
+          {
+            "name": "indice_mensual",
+            "type": "number",
+            "description": "Índice general mensual (base 100)"
+          },
+          {
+            "name": "variacion_mensual",
+            "type": "number",
+            "description": "Variación porcentual mensual"
+          },
+          {
+            "name": "variacion_acumulada",
+            "type": "number",
+            "description": "Variación acumulada del año (porcentaje)"
+          },
+          {
+            "name": "variacion_12_meses",
+            "type": "number",
+            "description": "Variación a 12 meses (porcentaje)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ine_ipc_producto_ciudad_csv",
+      "title": "IPC por producto y ciudad (CSV)",
+      "type": "table",
+      "path": "ine_ipc_producto_ciudad.csv",
+      "scheme": "file",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "ciudad",
+            "type": "string",
+            "description": "Ciudad o conurbación"
+          },
+          {
+            "name": "codigo",
+            "type": "string",
+            "description": "Código del producto"
+          },
+          {
+            "name": "producto",
+            "type": "string",
+            "description": "Nombre del producto"
+          },
+          {
+            "name": "fecha",
+            "type": "date",
+            "description": "Fecha del registro"
+          },
+          {
+            "name": "indice",
+            "type": "number",
+            "description": "Índice del producto (base 100)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ine_ipc_producto_ciudad_xlsx",
+      "title": "IPC por producto y ciudad (Excel)",
+      "type": "table",
+      "path": "ine_ipc_producto_ciudad.xlsx",
+      "scheme": "file",
+      "format": "xlsx",
+      "mediatype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "encoding": "utf-8",
+      "schema": {
+        "fields": [
+          {
+            "name": "ciudad",
+            "type": "string",
+            "description": "Ciudad o conurbación"
+          },
+          {
+            "name": "codigo",
+            "type": "string",
+            "description": "Código del producto"
+          },
+          {
+            "name": "producto",
+            "type": "string",
+            "description": "Nombre del producto"
+          },
+          {
+            "name": "fecha",
+            "type": "date",
+            "description": "Fecha del registro"
+          },
+          {
+            "name": "indice",
+            "type": "number",
+            "description": "Índice del producto (base 100)"
+          }
+        ]
+      }
+    }
+  ]
+}

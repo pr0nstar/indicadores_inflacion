@@ -1,0 +1,39 @@
+name: Release PDF bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g., v1.0.0)"
+        required: true
+      release_name:
+        description: "Release name (optional)"
+        required: false
+      notes:
+        description: "Release notes (optional)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build PDF and publish release
+        uses: mauforonda/datapackage_quarto_release@main
+        with:
+          tag: ${{ inputs.tag }}
+          release_name: ${{ inputs.release_name }}
+          release_body: ${{ inputs.notes }}
+          datapackage_path: datapackage.json
+          data_paths: |
+            ine_ipc_nacional.csv
+            ine_ipc_nacional.xlsx
+            ine_ipc_producto_ciudad.csv
+            ine_ipc_producto_ciudad.xlsx
+          qmd_output: datapackage.qmd
+          pdf_output: ficha.pdf
