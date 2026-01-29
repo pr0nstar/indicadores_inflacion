@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pandas as pd
+import numpy as np
 import datetime as dt
 import requests
 from bs4 import BeautifulSoup
@@ -86,6 +87,104 @@ def extract_ciudad(xl, ciudad):
     return df
 
 
+def extraer_nacional_division(xl, sheet_query, name):
+    def drop_footer_rows(raw, min_non_nan=2):
+        non_nan = raw.notna().sum(axis=1)
+        skip = 0
+        for v in reversed(non_nan.tolist()):
+            if v <= min_non_nan:
+                skip += 1
+            else:
+                break
+        return raw.iloc[:-skip] if skip > 0 else raw
+
+    meses = [
+        "ENERO",
+        "FEBRERO",
+        "MARZO",
+        "ABRIL",
+        "MAYO",
+        "JUNIO",
+        "JULIO",
+        "AGOSTO",
+        "SEPTIEMBRE",
+        "OCTUBRE",
+        "NOVIEMBRE",
+        "DICIEMBRE",
+    ]
+    meses_map = {mes: i + 1 for i, mes in enumerate(meses)}
+    sheet = [s for s in xl.sheet_names if sheet_query in s.lower()][0]
+    raw = pd.read_excel(xl, sheet, skiprows=4, header=None)
+    raw = drop_footer_rows(raw, min_non_nan=2)
+
+    with pd.option_context("future.no_silent_downcasting", True):
+        years = raw.iloc[0, 2:].ffill().infer_objects(copy=False)
+    months = raw.iloc[1, 2:]
+
+    data = raw.iloc[3:].copy()
+    data.columns = ["categoria_codigo", "categoria"] + list(range(2, raw.shape[1]))
+
+    date_cols = pd.MultiIndex.from_arrays([years, months], names=["year", "month"])
+    table = data.iloc[:, 2:]
+    table.columns = date_cols
+    table.index = pd.MultiIndex.from_frame(data.iloc[:, :2])
+
+    vertical = (
+        table.stack([0, 1], future_stack=True)
+        .reset_index(name=name)
+        .dropna(subset=["year", "month", name])
+    )
+
+    vertical["year"] = vertical["year"].astype(int)
+    vertical["month"] = vertical["month"].astype(str).str.strip().map(meses_map)
+    vertical.insert(
+        0,
+        "fecha",
+        vertical[["year", "month"]].apply(
+            lambda _: f"{_['year']}-{_['month']}-1", axis=1
+        ),
+    )
+    vertical.fecha = pd.to_datetime(vertical.fecha)
+    vertical = vertical[["fecha", "categoria_codigo", "categoria", name]]
+    vertical = vertical[vertical.categoria_codigo != 0]
+    vertical[name] = vertical[name].astype(float)
+    return vertical.set_index(["fecha", "categoria_codigo", "categoria"])
+
+
+def indice_nacional_division(desde):
+    fn = "indice.xlsx"
+    descargar_excel(
+        "https://www.ine.gob.bo/index.php/serie-historica-empalmada/",
+        "Índice General, Variación Mensual, Acumulada y a 12 Meses por División",
+        fn,
+    )
+    try:
+        xl = pd.ExcelFile(fn)
+        df = pd.concat(
+            [
+                extraer_nacional_division(xl, sheet, name)
+                for sheet, name in zip(
+                    ["ndice", "var mensual", "var acumulada", "12 meses"],
+                    [
+                        "indice_mensual",
+                        "variacion_mensual",
+                        "variacion_acumulada",
+                        "variacion_12_meses",
+                    ],
+                )
+            ],
+            axis=1,
+        ).reset_index()
+        df = df[df.fecha.dt.year >= desde].copy()
+        print(
+            f"nacional por categorias: {df.shape[0]} filas {'desde ' + str(desde) if desde > 0 else ''}"
+        )
+        return df
+    finally:
+        if os.path.exists(fn):
+            os.remove(fn)
+
+
 def indice_nacional(desde):
     fn = "indice.xlsx"
     descargar_excel(
@@ -93,25 +192,31 @@ def indice_nacional(desde):
         "Índice General, Variación Mensual, Acumulada y a 12 Meses",
         fn,
     )
-    xl = pd.ExcelFile(fn)
-    df = pd.concat(
-        [
-            extraer_indice(xl, sheet, name)
-            for sheet, name in zip(
-                ["ndice mensual", "var mensual", "var acumulada", "12 meses"],
-                [
-                    "indice_mensual",
-                    "variacion_mensual",
-                    "variacion_acumulada",
-                    "variacion_12_meses",
-                ],
-            )
-        ],
-        axis=1,
-    ).reset_index()
-    df = df[df.fecha.dt.year >= desde].copy()
-    print(f"nacional: {df.shape[0]} filas {'desde ' + str(desde) if desde > 0 else ''}")
-    return df
+    try:
+        xl = pd.ExcelFile(fn)
+        df = pd.concat(
+            [
+                extraer_indice(xl, sheet, name)
+                for sheet, name in zip(
+                    ["ndice mensual", "var mensual", "var acumulada", "12 meses"],
+                    [
+                        "indice_mensual",
+                        "variacion_mensual",
+                        "variacion_acumulada",
+                        "variacion_12_meses",
+                    ],
+                )
+            ],
+            axis=1,
+        ).reset_index()
+        df = df[df.fecha.dt.year >= desde].copy()
+        print(
+            f"nacional: {df.shape[0]} filas {'desde ' + str(desde) if desde > 0 else ''}"
+        )
+        return df
+    finally:
+        if os.path.exists(fn):
+            os.remove(fn)
 
 
 def indice_producto_ciudad():
@@ -121,11 +226,34 @@ def indice_producto_ciudad():
         "Índices a nivel producto",
         fn,
     )
-    xl = pd.ExcelFile(fn)
-    ciudades = [s for s in xl.sheet_names if s != "Inicio"]
-    df = pd.concat([extract_ciudad(xl, ciudad) for ciudad in ciudades])
-    print(f"producto_ciudad: {df.shape[0]} filas")
-    return df
+    try:
+        xl = pd.ExcelFile(fn)
+        ciudades = [s for s in xl.sheet_names if s != "Inicio"]
+        df = pd.concat([extract_ciudad(xl, ciudad) for ciudad in ciudades])
+        print(f"producto_ciudad: {df.shape[0]} filas")
+        return df
+    finally:
+        if os.path.exists(fn):
+            os.remove(fn)
+
+
+def indice_producto_nacional():
+    fn = "indice_producto_ciudad.xlsx"
+    descargar_excel(
+        "https://www.ine.gob.bo/index.php/nacional/",
+        "Índice a nivel Productos",
+        fn,
+    )
+    try:
+        xl = pd.ExcelFile(fn)
+        df = extract_ciudad(xl, "Bolivia")
+        df.drop(columns=["ciudad"], inplace=True)
+        df = df[["fecha", "codigo", "producto", "indice"]]
+        print(f"producto_nacional: {df.shape[0]} filas")
+        return df
+    finally:
+        if os.path.exists(fn):
+            os.remove(fn)
 
 
 def guardar(df, tabla, unique, upload=False):
@@ -140,7 +268,9 @@ def guardar(df, tabla, unique, upload=False):
         df.fecha = df.fecha.dt.strftime("%Y-%m-%d")
         for i in range(0, n, chunk_size):
             print(f"{n if i + chunk_size > n else i + chunk_size} filas")
-            chunk = df.iloc[i : i + chunk_size]
+            chunk = df.iloc[i : i + chunk_size].copy()
+            chunk = chunk.replace([np.inf, -np.inf], None)
+            chunk = chunk.astype(object).where(pd.notna(chunk), None)
             supabase.table(tabla).upsert(
                 chunk.to_dict(orient="records"),
                 on_conflict=",".join(unique),
@@ -154,6 +284,22 @@ if __name__ == "__main__":
     parser.add_argument("--upload", action="store_true", help="Save to Supabase")
     parser.add_argument("--desde", type=int, help="Desde qué año", default=0)
     args = parser.parse_args()
+
+    producto_nacional = indice_producto_nacional()
+    guardar(
+        producto_nacional,
+        "ine_ipc_producto_nacional",
+        ["fecha", "codigo"],
+        upload=args.upload,
+    )
+
+    nacional_division = indice_nacional_division(args.desde)
+    guardar(
+        nacional_division,
+        "ine_ipc_nacional_divisiones",
+        ["fecha", "categoria_codigo"],
+        upload=args.upload,
+    )
 
     nacional = indice_nacional(args.desde)
     guardar(nacional, "ine_ipc_nacional", ["fecha"], upload=args.upload)
