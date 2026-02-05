@@ -38,3 +38,7 @@ jobs:
           datapackage_path: datapackage.json
           identity: "mefp"
           project: "Monitor de la Recuperación Económica"
+          upload: "true"
+          supabase_url: ${{ secrets.SUPABASE_URL }}
+          supabase_service_role_key: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          supabase_bucket: "descargas"
